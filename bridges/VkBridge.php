@@ -304,8 +304,30 @@ class VkBridge extends BridgeAbstract
             }
 
             $item = [];
-            $item['content'] = strip_tags(backgroundToImg($post->find('div.wall_text', 0)->innertext), '<a><br><img>');
-            $item['content'] .= $content_suffix;
+            $content = strip_tags(backgroundToImg($post->find('div.wall_text', 0)->innertext), '<a><br><img>');
+            $content .= $content_suffix;
+            $content = str_get_html($content);
+            foreach ($content->find('img') as $img) {
+                $parsed_src = parse_url($img->getAttribute('src'));
+
+                // unblur images (case of impf)
+                // get original images instead of thumbnails (case of impg)
+                $imgPrefix = array_reduce(['/impf/', '/impg/'], function ($a, $c) use ($parsed_src) {
+                    if ($a) {
+                        return $a;
+                    }
+                    if (str_starts_with($parsed_src['path'], $c)) {
+                        return $c;
+                    }
+                    return $a;
+                }, '');
+                if ($imgPrefix) {
+                    $new_src = $parsed_src['scheme'] . '://' . $parsed_src['host'];
+                    $new_src .= substr($parsed_src['path'], strlen($imgPrefix) - 1);
+                    $img->setAttribute('src', $new_src);
+                }
+            }
+            $item['content'] = $content->outertext;
             $item['categories'] = $hashtags;
 
             // get post link
@@ -374,7 +396,7 @@ class VkBridge extends BridgeAbstract
         if ($original) {
             return "<a href='$original'><img src='$thumb'></a>";
         } else {
-            return "<img src='$thumb'>";
+            return backgroundToImg($a);
         }
     }
 
@@ -420,8 +442,30 @@ class VkBridge extends BridgeAbstract
     private function getContents()
     {
         $header = ['Accept-language: en', 'Cookie: remixlang=3'];
+        $redirects = 0;
+        $uri = $this->getURI();
 
-        return getContents($this->getURI(), $header);
+        while ($redirects < 2) {
+            $response = getContents($uri, $header, [CURLOPT_FOLLOWLOCATION => false], true);
+
+            if (in_array($response['code'], [200, 304])) {
+                return $response['content'];
+            }
+
+            $uri = urljoin(self::URI, $response['header']['location'][0]);
+
+            if (str_contains($uri, '/429.html')) {
+                returnServerError('VK responded "Too many requests"');
+            }
+
+            if (!preg_match('#^https?://vk.com/(club|public)#', $uri)) {
+                returnServerError('Unexpected redirect location');
+            }
+
+            $redirects++;
+        }
+
+        returnServerError('Too many redirects, while retreving content from VK');
     }
 
     protected function appendVideo($video_title, $video_link, &$content_suffix, array &$post_videos)

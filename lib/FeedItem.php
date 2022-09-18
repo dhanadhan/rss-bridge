@@ -164,7 +164,7 @@ class FeedItem
                 FILTER_FLAG_PATH_REQUIRED
             )
         ) {
-            Debug::log('URI must include a scheme, host and path!');
+            Debug::log(sprintf('Not a valid url: "%s"', $uri));
         } else {
             $scheme = parse_url($uri, PHP_URL_SCHEME);
 
@@ -314,8 +314,7 @@ class FeedItem
      *
      * Use {@see FeedItem::getContent()} to get the current item content.
      *
-     * @param string|object $content The item content as text or simple_html_dom
-     * object.
+     * @param string|object $content The item content as text or simple_html_dom object.
      * @return self
      */
     public function setContent($content)
