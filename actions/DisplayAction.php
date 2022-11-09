@@ -52,8 +52,7 @@ class DisplayAction implements ActionInterface
             if (! Configuration::getConfig('cache', 'custom_timeout')) {
                 unset($request['_cache_timeout']);
                 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) . '?' . http_build_query($request);
-                header('Location: ' . $uri, true, 301);
-                return;
+                return new Response('', 301, ['Location' => $uri]);
             }
 
             $cache_timeout = filter_var($request['_cache_timeout'], FILTER_VALIDATE_INT);
@@ -116,8 +115,8 @@ class DisplayAction implements ActionInterface
 
                 if ($mtime <= $stime) {
                     // Cached data is older or same
-                    header('Last-Modified: ' . gmdate('D, d M Y H:i:s ', $mtime) . 'GMT', true, 304);
-                    return;
+                    $lastModified2 = gmdate('D, d M Y H:i:s ', $mtime) . 'GMT';
+                    return new Response('', 304, ['Last-Modified' => $lastModified2]);
                 }
             }
 
@@ -163,18 +162,18 @@ class DisplayAction implements ActionInterface
                         // Create "new" error message every 24 hours
                         $request['_error_time'] = urlencode((int)(time() / 86400));
 
-                        $message = sprintf('Bridge returned error %s! (%s)', $e->getCode(), $request['_error_time']);
-                        $item->setTitle($message);
+                        // todo: I don't think this _error_time in the title is useful. It's confusing.
+                        $itemTitle = sprintf('Bridge returned error %s! (%s)', $e->getCode(), $request['_error_time']);
+                        $item->setTitle($itemTitle);
                         $item->setURI(get_current_url());
                         $item->setTimestamp(time());
 
-                        $message = create_sane_exception_message($e);
-                        $content = render_template('bridge-error.html.php', [
-                            'message' => $message,
-                            'stacktrace' => create_sane_stacktrace($e),
+                        // todo: consider giving more helpful error messages
+                        $content = render_template(__DIR__ . '/../templates/bridge-error.html.php', [
+                            'error' => render_template(__DIR__ . '/../templates/error.html.php', ['e' => $e]),
                             'searchUrl' => self::createGithubSearchUrl($bridge),
-                            'issueUrl' => self::createGithubIssueUrl($bridge, $e, $message),
-                            'bridge' => $bridge,
+                            'issueUrl' => self::createGithubIssueUrl($bridge, $e, create_sane_exception_message($e)),
+                            'maintainer' => $bridge->getMaintainer(),
                         ]);
                         $item->setContent($content);
 
@@ -197,11 +196,12 @@ class DisplayAction implements ActionInterface
         $format->setExtraInfos($infos);
         $lastModified = $cache->getTime();
         $format->setLastModified($lastModified);
+        $headers = [];
         if ($lastModified) {
-            header('Last-Modified: ' . gmdate('D, d M Y H:i:s ', $lastModified) . 'GMT');
+            $headers['Last-Modified'] = gmdate('D, d M Y H:i:s ', $lastModified) . 'GMT';
         }
-        header('Content-Type: ' . $format->getMimeType() . '; charset=' . $format->getCharset());
-        print $format->stringify();
+        $headers['Content-Type'] = $format->getMimeType() . '; charset=' . $format->getCharset();
+        return new Response($format->stringify(), 200, $headers);
     }
 
     private static function createGithubIssueUrl($bridge, $e, string $message): string
@@ -211,7 +211,7 @@ class DisplayAction implements ActionInterface
             'body' => sprintf(
                 "```\n%s\n\n%s\n\nQuery string: %s\nVersion: %s\nOs: %s\nPHP version: %s\n```",
                 $message,
-                implode("\n", create_sane_stacktrace($e)),
+                implode("\n", trace_to_call_points(trace_from_exception($e))),
                 $_SERVER['QUERY_STRING'] ?? '',
                 Configuration::getVersion(),
                 PHP_OS_FAMILY,

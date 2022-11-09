@@ -33,6 +33,9 @@ custom_timeout = false
 ; ""    = Disabled (default)
 email = ""
 
+; Advertise a contact Telegram url e.g. "https://t.me/elegantobjects"
+telegram = ""
+
 ; Show Donation information for bridges if available.
 ; This will display a 'Donate' link on the bridge view
 ; and a "Donate" button in the HTML view of the bridges feed.
@@ -57,7 +60,7 @@ by_bridge = false
 
 [authentication]
 
-; Enables authentication for all requests to this RSS-Bridge instance.
+; Enables basic authentication for all requests to this RSS-Bridge instance.
 ;
 ; Warning: You'll have to upgrade existing feeds after enabling this option!
 ;
@@ -69,6 +72,9 @@ username = "admin"
 
 ; This default password is public knowledge. Replace it.
 password = "7afbf648a369b261"
+
+; This will be used only for actions that require privileged access
+access_token = ""
 
 [error]
 
@@ -90,3 +96,13 @@ file = "cache.sqlite"
 [MemcachedCache]
 host = "localhost"
 port = 11211
+
+; --- Bridge specific configuration ------
+
+[DiscogsBridge]
+
+; Sets the personal access token for interactions with Discogs. When
+; provided, images can be included in generated feeds.
+;
+; "" = no token used (default)
+personal_access_token = ""
