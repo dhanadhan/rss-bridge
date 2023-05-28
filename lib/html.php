@@ -185,14 +185,28 @@ function defaultLinkTo($dom, $url)
         $dom = str_get_html($dom);
     }
 
-    foreach ($dom->find('img') as $image) {
-        $image->src = urljoin($url, $image->src);
+    // Use long method names for compatibility with simple_html_dom and DOMDocument
+
+    // Work around bug in simple_html_dom->getElementsByTagName
+    if ($dom instanceof simple_html_dom) {
+        $findByTag = function ($name) use ($dom) {
+            return $dom->getElementsByTagName($name, null);
+        };
+    } else {
+        $findByTag = function ($name) use ($dom) {
+            return $dom->getElementsByTagName($name);
+        };
     }
 
-    foreach ($dom->find('a') as $anchor) {
-        $anchor->href = urljoin($url, $anchor->href);
+    foreach ($findByTag('img') as $image) {
+        $image->setAttribute('src', urljoin($url, $image->getAttribute('src')));
     }
 
+    foreach ($findByTag('a') as $anchor) {
+        $anchor->setAttribute('href', urljoin($url, $anchor->getAttribute('href')));
+    }
+
+    // Will never be true for DOMDocument
     if ($string_convert) {
         $dom = $dom->outertext;
     }
@@ -361,10 +375,22 @@ function stripRecursiveHTMLSection($string, $tag_name, $tag_start)
  * @link https://parsedown.org/ Parsedown
  *
  * @param string $string Input string in Markdown format
+ * @param array $config Parsedown options to control output
  * @return string output string in HTML format
  */
-function markdownToHtml($string)
+function markdownToHtml($string, $config = [])
 {
     $Parsedown = new Parsedown();
+    foreach ($config as $option => $value) {
+        if ($option === 'breaksEnabled') {
+            $Parsedown->setBreaksEnabled($value);
+        } elseif ($option === 'markupEscaped') {
+            $Parsedown->setMarkupEscaped($value);
+        } elseif ($option === 'urlsLinked') {
+            $Parsedown->setUrlsLinked($value);
+        } else {
+            throw new \InvalidArgumentException("Invalid Parsedown option \"$option\"");
+        }
+    }
     return $Parsedown->text($string);
 }
