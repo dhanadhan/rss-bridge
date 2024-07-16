@@ -51,15 +51,26 @@ class CssSelectorBridge extends BridgeAbstract
                     EOT,
                 'exampleValue' => ' | BlogName',
             ],
+            'discard_thumbnail' => [
+                'name' => '[Optional] Discard thumbnail set by site author',
+                'title' => 'Some sites set their logo as thumbnail for every article. Use this option to discard it.',
+                'type' => 'checkbox',
+            ],
+            'thumbnail_as_header' => [
+                'name' => '[Optional] Insert thumbnail as article header',
+                'title' => 'Insert article main image on top of article contents.',
+                'type' => 'checkbox',
+            ],
             'limit' => self::LIMIT
         ]
     ];
 
-    private $feedName = '';
+    protected $feedName = '';
+    protected $homepageUrl = '';
 
     public function getURI()
     {
-        $url = $this->getInput('home_page');
+        $url = $this->homepageUrl;
         if (empty($url)) {
             $url = parent::getURI();
         }
@@ -76,29 +87,38 @@ class CssSelectorBridge extends BridgeAbstract
 
     public function collectData()
     {
-        $url = $this->getInput('home_page');
+        $this->homepageUrl = $this->getInput('home_page');
         $url_selector = $this->getInput('url_selector');
         $url_pattern = $this->getInput('url_pattern');
         $content_selector = $this->getInput('content_selector');
         $content_cleanup = $this->getInput('content_cleanup');
         $title_cleanup = $this->getInput('title_cleanup');
+        $discard_thumbnail = $this->getInput('discard_thumbnail');
+        $thumbnail_as_header = $this->getInput('thumbnail_as_header');
         $limit = $this->getInput('limit') ?? 10;
 
-        $html = defaultLinkTo(getSimpleHTMLDOM($url), $url);
-        $this->feedName = $this->getPageTitle($html, $title_cleanup);
+        $html = defaultLinkTo(getSimpleHTMLDOM($this->homepageUrl), $this->homepageUrl);
+        $this->feedName = $this->titleCleanup($this->getPageTitle($html), $title_cleanup);
         $items = $this->htmlFindEntries($html, $url_selector, $url_pattern, $limit, $content_cleanup);
 
         if (empty($content_selector)) {
             $this->items = $items;
         } else {
             foreach ($items as $item) {
-                $this->items[] = $this->expandEntryWithSelector(
+                $item = $this->expandEntryWithSelector(
                     $item['uri'],
                     $content_selector,
                     $content_cleanup,
                     $title_cleanup,
                     $item['title']
                 );
+                if ($discard_thumbnail && isset($item['enclosures'])) {
+                    unset($item['enclosures']);
+                }
+                if ($thumbnail_as_header && isset($item['enclosures'][0])) {
+                    $item['content'] = '<p><img src="' . $item['enclosures'][0] . '" /></p>' . $item['content'];
+                }
+                $this->items[] = $item;
             }
         }
     }
@@ -114,7 +134,7 @@ class CssSelectorBridge extends BridgeAbstract
     {
         if (!empty($url_pattern)) {
             $url_pattern = '/' . str_replace('/', '\/', $url_pattern) . '/';
-            $links = array_filter($links, function ($url) {
+            $links = array_filter($links, function ($url) use ($url_pattern) {
                 return preg_match($url_pattern, $url) === 1;
             });
         }
@@ -129,17 +149,27 @@ class CssSelectorBridge extends BridgeAbstract
     /**
      * Retrieve title from webpage URL or DOM
      * @param string|object $page URL or DOM to retrieve title from
-     * @param string $title_cleanup optional string to remove from webpage title, e.g. " | BlogName"
      * @return string Webpage title
      */
-    protected function getPageTitle($page, $title_cleanup = null)
+    protected function getPageTitle($page)
     {
         if (is_string($page)) {
             $page = getSimpleHTMLDOMCached($page);
         }
         $title = html_entity_decode($page->find('title', 0)->plaintext);
-        if (!empty($title)) {
-            $title = trim(str_replace($title_cleanup, '', $title));
+        return $title;
+    }
+
+    /**
+     * Clean Article title. Remove constant part that appears in every title such as blog name.
+     * @param string $title Title to clean, e.g. "Article Name | BlogName"
+     * @param string $title_cleanup string to remove from webpage title, e.g. " | BlogName"
+     * @return string Cleaned Title
+     */
+    protected function titleCleanup($title, $title_cleanup)
+    {
+        if (!empty($title) && !empty($title_cleanup)) {
+            return trim(str_replace($title_cleanup, '', $title));
         }
         return $title;
     }
@@ -246,27 +276,34 @@ class CssSelectorBridge extends BridgeAbstract
         }
 
         $entry_html = getSimpleHTMLDOMCached($entry_url);
+        $item = html_find_seo_metadata($entry_html);
+
+        if (empty($item['uri'])) {
+            $item['uri'] = $entry_url;
+        }
+
+        if (empty($item['title'])) {
+            $article_title = $this->getPageTitle($entry_html, $title_cleanup);
+            if (!empty($title_default) && (empty($article_title) || $article_title === $this->feedName)) {
+                $article_title = $title_default;
+            }
+            $item['title'] = $article_title;
+        }
+
+        $item['title'] = $this->titleCleanup($item['title'], $title_cleanup);
+
         $article_content = $entry_html->find($content_selector);
 
         if (!empty($article_content)) {
             $article_content = $article_content[0];
-        } else {
-            returnClientError('Could not find content selector at URL: ' . $entry_url);
+            $article_content = convertLazyLoading($article_content);
+            $article_content = defaultLinkTo($article_content, $entry_url);
+            $article_content = $this->cleanArticleContent($article_content, $content_cleanup);
+            $item['content'] = $article_content;
+        } else if (!empty($item['content'])) {
+            $item['content'] .= '<br /><p><em>Could not extract full content, selector may need to be updated.</em></p>';
         }
 
-        $article_content = convertLazyLoading($article_content);
-        $article_content = defaultLinkTo($article_content, $entry_url);
-        $article_content = $this->cleanArticleContent($article_content, $content_cleanup);
-
-        $article_title = $this->getPageTitle($entry_html, $title_cleanup);
-        if (!empty($title_default) && (empty($article_title) || $article_title === $this->feedName)) {
-            $article_title = $title_default;
-        }
-
-        $item = [];
-        $item['uri'] = $entry_url;
-        $item['title'] = $article_title;
-        $item['content'] = $article_content;
         return $item;
     }
 }

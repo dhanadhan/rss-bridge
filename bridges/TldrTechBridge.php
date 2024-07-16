@@ -22,11 +22,15 @@ class TldrTechBridge extends BridgeAbstract
                 'type' => 'list',
                 'values' => [
                     'Tech' => 'tech',
-                    'Crypto' => 'crypto',
+                    'Web Dev' => 'webdev',
                     'AI' => 'ai',
-                    'Web Dev' => 'engineering',
+                    'Information Security' => 'infosec',
+                    'Product Management' => 'product',
+                    'DevOps' => 'devops',
+                    'Crypto' => 'crypto',
+                    'Design' => 'design',
+                    'Marketing' => 'marketing',
                     'Founders' => 'founders',
-                    'Cybersecurity' => 'cybersecurity'
                 ],
                 'defaultValue' => 'tech'
             ]
@@ -35,7 +39,10 @@ class TldrTechBridge extends BridgeAbstract
 
     public function collectData()
     {
-        $html = getSimpleHTMLDOM(self::URI . $this->getInput('topic') . '/archives');
+        $topic = $this->getInput('topic');
+        $limit = $this->getInput('limit');
+        $url = self::URI . $topic . '/archives';
+        $html = getSimpleHTMLDOM($url);
         $entries_root = $html->find('div.content-center.mt-5', 0);
         $added = 0;
         foreach ($entries_root->children() as $child) {
@@ -45,23 +52,31 @@ class TldrTechBridge extends BridgeAbstract
             // Convert /<topic>/2023-01-01 to unix timestamp
             $date_items = explode('/', $child->href);
             $date = strtotime(end($date_items));
-            $this->items[] = [
-                'uri' => self::URI . $child->href,
-                'title' => $child->plaintext,
-                'timestamp' => $date,
-                'content' => $this->parseEntry(self::URI . $child->href)
-            ];
+            $item_url = self::URI . ltrim($child->href, '/');
+            try {
+                $this->items[] = [
+                    'uri'       => self::URI . $child->href,
+                    'title'     => $child->plaintext,
+                    'timestamp' => $date,
+                    'content'   => $this->extractContent($item_url),
+                ];
+            } catch (HttpException $e) {
+                continue;
+            }
             $added++;
-            if ($added >= $this->getInput('limit')) {
+            if ($added >= $limit) {
                 break;
             }
         }
     }
 
-    private function parseEntry($uri)
+    private function extractContent($url)
     {
-        $html = getSimpleHTMLDOM($uri);
+        $html = getSimpleHTMLDOM($url);
         $content = $html->find('div.content-center.mt-5', 0);
+        if (!$content) {
+            throw new HttpException('Could not find content', 500);
+        }
         $subscribe_form = $content->find('div.mt-5 > div > form', 0);
         if ($subscribe_form) {
             $content->removeChild($subscribe_form->parent->parent);

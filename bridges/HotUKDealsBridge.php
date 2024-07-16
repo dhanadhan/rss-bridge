@@ -3273,12 +3273,11 @@ class HotUKDealsBridge extends PepperBridgeAbstract
         'context-group' => 'Deals per group',
         'context-talk' => 'Discussion Monitoring',
         'uri-group' => 'tag/',
+        'uri-deal' => 'deals/',
+        'uri-merchant' => 'search/deals?merchant-id=',
         'request-error' => 'Could not request HotUKDeals',
         'thread-error' => 'Unable to determine the thread ID. Check the URL you entered',
-        'no-results' => 'Ooops, looks like we could',
-        'relative-date-indicator' => [
-            'ago',
-        ],
+        'currency' => '£',
         'price' => 'Price',
         'shipping' => 'Shipping',
         'origin' => 'Origin',
@@ -3286,50 +3285,7 @@ class HotUKDealsBridge extends PepperBridgeAbstract
         'title-keyword' => 'Search',
         'title-group' => 'Group',
         'title-talk' => 'Discussion Monitoring',
-        'local-months' => [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Occ',
-            'Nov',
-            'Dec',
-            'st',
-            'nd',
-            'rd',
-            'th'
-        ],
-        'local-time-relative' => [
-            'Posted ',
-            'm',
-            'h,',
-            'day',
-            'days',
-            'month',
-            'year',
-            'and '
-        ],
-        'date-prefixes' => [
-            'Found ',
-            'Refreshed ',
-            'Made hot '
-        ],
-        'relative-date-alt-prefixes' => [
-            'Made hot ',
-            'Refreshed ',
-            'Last updated '
-        ],
-        'relative-date-ignore-suffix' => [
-            '/by.*$/'
-        ],
-        'localdeal' => [
-            'Local',
-            'Expires'
-        ]
+        'deal-type' => 'Deal Type',
+        'localdeal' => 'Local deal',
     ];
 }

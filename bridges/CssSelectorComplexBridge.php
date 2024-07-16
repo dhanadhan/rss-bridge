@@ -224,7 +224,7 @@ class CssSelectorComplexBridge extends BridgeAbstract
     {
         if (!empty($url_pattern)) {
             $url_pattern = '/' . str_replace('/', '\/', $url_pattern) . '/';
-            $links = array_filter($links, function ($url) {
+            $links = array_filter($links, function ($url) use ($url_pattern) {
                 return preg_match($url_pattern, $url) === 1;
             });
         }
@@ -245,7 +245,7 @@ class CssSelectorComplexBridge extends BridgeAbstract
     protected function getTitle($page, $title_cleanup)
     {
         if (is_string($page)) {
-            $page = getSimpleHTMLDOMCached($page);
+            $page = getSimpleHTMLDOMCached($page, 86400, $this->getHeaders());
         }
         $title = html_entity_decode($page->find('title', 0)->plaintext);
         if (!empty($title)) {
@@ -302,7 +302,7 @@ class CssSelectorComplexBridge extends BridgeAbstract
     protected function htmlFindEntryElements($page, $entry_selector, $url_selector, $url_pattern = '', $limit = 0)
     {
         if (is_string($page)) {
-            $page = getSimpleHTMLDOM($page);
+            $page = getSimpleHTMLDOM($page, $this->getHeaders());
         }
 
         $entryElements = $page->find($entry_selector);
@@ -355,11 +355,11 @@ class CssSelectorComplexBridge extends BridgeAbstract
      */
     protected function fetchArticleElementFromPage($entry_url, $content_selector)
     {
-        $entry_html = getSimpleHTMLDOMCached($entry_url);
+        $entry_html = getSimpleHTMLDOMCached($entry_url, 86400, $this->getHeaders());
         $article_content = $entry_html->find($content_selector, 0);
 
         if (is_null($article_content)) {
-            returnClientError('Could not article content at URL: ' . $entry_url);
+            returnClientError('Could not get article content at URL: ' . $entry_url);
         }
 
         $article_content = defaultLinkTo($article_content, $entry_url);
@@ -415,10 +415,14 @@ class CssSelectorComplexBridge extends BridgeAbstract
     ) {
         $article_content = convertLazyLoading($entry_html);
 
+        $article_title = '';
         if (is_null($title_selector)) {
             $article_title = $title_default;
         } else {
-            $article_title = trim($entry_html->find($title_selector, 0)->innertext);
+            $titleElement = $entry_html->find($title_selector, 0);
+            if ($titleElement) {
+                $article_title = trim($titleElement->innertext);
+            }
         }
 
         $author = null;
@@ -438,7 +442,7 @@ class CssSelectorComplexBridge extends BridgeAbstract
         if (!is_null($time_selector) && $time_selector != '') {
             $time_element = $entry_html->find($time_selector, 0);
             $time = $time_element->getAttribute('datetime');
-            if (is_null($time)) {
+            if (empty($time)) {
                 $time = $time_element->innertext;
             }
 

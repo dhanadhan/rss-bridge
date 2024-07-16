@@ -63,7 +63,8 @@ TEXT;
                 try {
                     $this->collectExpandableDatas($feed);
                 } catch (HttpException $e) {
-                    Logger::warning(sprintf('Exception in FeedMergeBridge: %s', create_sane_exception_message($e)));
+                    $this->logger->warning(sprintf('Exception in FeedMergeBridge: %s', create_sane_exception_message($e)));
+                    // This feed item might be spammy. Considering dropping it.
                     $this->items[] = [
                         'title' => 'RSS-Bridge: ' . $e->getMessage(),
                         // Give current time so it sorts to the top
@@ -71,9 +72,9 @@ TEXT;
                     ];
                     continue;
                 } catch (\Exception $e) {
-                    if (str_starts_with($e->getMessage(), 'Unable to parse xml')) {
+                    if (str_starts_with($e->getMessage(), 'Failed to parse xml')) {
                         // Allow this particular exception from FeedExpander
-                        Logger::warning(sprintf('Exception in FeedMergeBridge: %s', create_sane_exception_message($e)));
+                        $this->logger->warning(sprintf('Exception in FeedMergeBridge: %s', create_sane_exception_message($e)));
                         continue;
                     }
                     throw $e;
@@ -82,6 +83,8 @@ TEXT;
                 $this->collectExpandableDatas($feed);
             }
         }
+
+        // If $this->items is empty we should consider throw exception here
 
         // Sort by timestamp descending
         usort($this->items, function ($a, $b) {

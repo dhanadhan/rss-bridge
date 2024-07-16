@@ -132,9 +132,10 @@ class PatreonBridge extends BridgeAbstract
                             $audio = $this->findInclude($posts, 'media', $id)->attributes ?? null;
                         }
                     }
-                    $thumbnail = $post->attributes->thumbnail->large ?? $post->attributes->thumbnail->url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->url;
+                    $thumbnail = $post->attributes->thumbnail->large ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->thumbnail->url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->url ?? null;
                     $audio_filename = $audio->file_name ?? $item['title'];
                     $download_url = $audio->download_url ?? $item['uri'];
                     $item['content'] .= "<p><a href\"{$download_url}\"><img src=\"{$thumbnail}\"><br/>🎧 {$audio_filename}</a><br/>";
@@ -146,16 +147,18 @@ class PatreonBridge extends BridgeAbstract
                     break;
 
                 case 'video_embed':
-                    $thumbnail = $post->attributes->thumbnail->large ?? $post->attributes->thumbnail->url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->url;
+                    $thumbnail = $post->attributes->thumbnail->large ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->thumbnail->url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->url ?? null;
                     $item['content'] .= "<p><a href=\"{$item['uri']}\">🎬 {$item['title']}<br><img src=\"{$thumbnail}\"></a></p>";
                     break;
 
                 case 'video_external_file':
-                    $thumbnail = $post->attributes->thumbnail->large ?? $post->attributes->thumbnail->url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url;
-                    $thumbnail = $thumbnail ?? $post->attributes->image->url;
+                    $thumbnail = $post->attributes->thumbnail->large ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->thumbnail->url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->thumb_url ?? null;
+                    $thumbnail = $thumbnail ?? $post->attributes->image->url ?? null;
                     $item['content'] .= "<p><a href=\"{$item['uri']}\">🎬 {$item['title']}<br><img src=\"{$thumbnail}\"></a></p>";
                     break;
 
@@ -163,9 +166,9 @@ class PatreonBridge extends BridgeAbstract
                     $item['content'] .= '<p>';
                     foreach ($post->relationships->images->data as $key => $image) {
                         $image = $this->findInclude($posts, 'media', $image->id)->attributes;
-                        $image_fullres = $image->download_url ?? $image->image_urls->url ?? $image->image_urls->original;
+                        $image_fullres = $image->download_url ?? $image->image_urls->url ?? $image->image_urls->original ?? null;
                         $filename = $image->file_name ?? '';
-                        $image_url = $image->image_urls->url ?? $image->image_urls->original;
+                        $image_url = $image->image_urls->url ?? $image->image_urls->original ?? null;
                         $item['enclosures'][] = $image_fullres;
                         $item['content'] .= "<a href=\"{$image_fullres}\">{$filename}<br/><img src=\"{$image_url}\"></a><br/><br/>";
                     }
@@ -225,7 +228,7 @@ class PatreonBridge extends BridgeAbstract
             //post attachments
             if (
                 isset($post->relationships->attachments->data) &&
-                sizeof($post->relationships->attachments->data) > 0
+                count($post->relationships->attachments->data) > 0
             ) {
                 $item['enclosures'] = [];
                 $item['content'] .= '<hr><p><b>Attachments:</b><ul>';

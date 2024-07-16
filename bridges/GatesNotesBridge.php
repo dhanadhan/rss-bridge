@@ -20,13 +20,18 @@ class GatesNotesBridge extends BridgeAbstract
         $apiUrl = self::URI . $api_endpoint . http_build_query($params);
 
         $rawContent = getContents($apiUrl);
+        $cleanedContent = trim($rawContent, '"');
         $cleanedContent = str_replace([
             '<string xmlns="http://schemas.microsoft.com/2003/10/Serialization/">',
-            '</string>',
-        ], '', $rawContent);
+            '</string>'
+        ], '', $cleanedContent);
+        $cleanedContent = str_replace('\r\n', "\n", $cleanedContent);
+        $cleanedContent = stripslashes($cleanedContent);
 
-        // The content is actually a json between quotes with \r\n inserted
         $json = Json::decode($cleanedContent, false);
+        if (is_string($json)) {
+            throw new \Exception('wtf? ' . $json);
+        }
 
         foreach ($json as $article) {
             $item = [];
@@ -98,7 +103,7 @@ class GatesNotesBridge extends BridgeAbstract
         }
         $article_body = sanitize($article_body->innertext);
 
-        $content = $top_description . $hero_image . $article_body;
+        $content = $top_description . ($hero_image ?? '') . $article_body;
 
         return $content;
     }

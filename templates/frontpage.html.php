@@ -1,4 +1,4 @@
-<script src="static/rss-bridge.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', rssbridge_toggle_bridge);
     document.addEventListener('DOMContentLoaded', rssbridge_list_search);
@@ -29,24 +29,18 @@
 <?= raw($bridges) ?>
 
 <section class="footer">
-    <a href="https://github.com/rss-bridge/rss-bridge">RSS-Bridge ~ Public Domain</a><br>
-    <p class="version"><?= e(Configuration::getVersion()) ?></p>
+    <a href="https://github.com/RSS-Bridge/rss-bridge">
+        https://github.com/RSS-Bridge/rss-bridge
+    </a>
+
+    <br>
+    <br>
+
+    <p class="version">
+        <?= e(Configuration::getVersion()) ?>
+    </p>
 
     <?= $active_bridges ?>/<?= $total_bridges ?> active bridges.<br>
-
-    <?php if ($active_bridges !== $total_bridges): ?>
-        <?php if ($show_inactive): ?>
-            <a href="?show_inactive=0">
-                <button class="small">Hide inactive bridges</button>
-            </a>
-            <br>
-        <?php else: ?>
-            <a href="?show_inactive=1">
-                <button class="small">Show inactive bridges</button>
-            </a>
-            <br>
-        <?php endif; ?>
-    <?php endif; ?>
 
     <br>
 
